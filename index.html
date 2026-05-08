@@ -6,21 +6,66 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 600px;
+      max-width: 700px;
       margin: 40px auto;
+      line-height: 1.6;
     }
+
     input {
       width: 70%;
       padding: 8px;
+      font-size: 16px;
     }
+
     button {
-      padding: 8px 12px;
+      padding: 9px 14px;
+      font-size: 16px;
+      cursor: pointer;
     }
-    .result {
-      margin-top: 20px;
-      white-space: pre-wrap;
-      background: #f5f5f5;
-      padding: 10px;
+
+    .status {
+      margin-top: 15px;
+      font-style: italic;
+    }
+
+    .card {
+      margin-top: 25px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: #f9f9f9;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background: #eee;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    .BUY { background: green; }
+    .WAIT { background: orange; }
+    .BUY_USED { background: blue; }
+
+    ul {
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -28,20 +73,22 @@
 <body>
 
   <h2>AI Buy Advisor</h2>
+  <p>Enter a product to compare live prices and get buy / wait advice.</p>
 
-  <p>Enter a product to see live prices and get BUY / WAIT advice.</p>
-
-  <input id="product" placeholder="e.g. iPhone 15" />
+  <input id="product" placeholder="e.g. iPhone 7" />
   <button onclick="compare()">Compare</button>
 
-  <div id="status"></div>
-  <div id="result" class="result"></div>
+  <div id="status" class="status"></div>
+  <div id="output"></div>
 
   <script>
     async function compare() {
       const product = document.getElementById("product").value;
-      document.getElementById("status").textContent = "Checking prices...";
-      document.getElementById("result").textContent = "";
+      const status = document.getElementById("status");
+      const output = document.getElementById("output");
+
+      status.textContent = "Checking prices...";
+      output.innerHTML = "";
 
       try {
         const response = await fetch(
@@ -54,13 +101,56 @@
         );
 
         const data = await response.json();
-        document.getElementById("status").textContent = "";
-        document.getElementById("result").textContent =
-          JSON.stringify(data, null, 2);
+        status.textContent = "";
 
+        renderResult(data);
       } catch (err) {
-        document.getElementById("status").textContent = "Error contacting backend.";
+        status.textContent = "Error contacting backend.";
+        console.error(err);
       }
+    }
+
+    function renderResult(data) {
+      const output = document.getElementById("output");
+
+      let vendorsHtml = "";
+      if (data.vendors && data.vendors.length > 0) {
+        vendorsHtml = `
+          <table>
+            <tr><th>Vendor</th><th>Price (₹)</th></tr>
+            ${data.vendors.map(v =>
+              `<tr><td>${v.name}</td><td>${v.price}</td></tr>`
+            ).join("")}
+          </table>
+        `;
+      }
+
+      let reasoningHtml = "";
+      if (data.ai_advice && data.ai_advice.reasoning) {
+        reasoningHtml = `
+          <ul>
+            ${data.ai_advice.reasoning.map(r => `<li>${r}</li>`).join("")}
+          </ul>
+        `;
+      }
+
+      output.innerHTML = `
+        <div class="card">
+          <h3>Product: ${data.product}</h3>
+
+          <h4>Prices</h4>
+          ${vendorsHtml}
+
+          <h4>Recommendation</h4>
+          <div class="badge ${data.decision}">
+            ${data.decision}
+          </div>
+          <span> (${data.confidence} confidence)</span>
+
+          <h4>Why?</h4>
+          ${reasoningHtml}
+        </div>
+      `;
     }
   </script>
 
